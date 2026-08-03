@@ -1,0 +1,151 @@
+version: 2
+
+models:
+  - name: dim_program
+    columns:
+      - name: program_key
+        tests: [unique, not_null]
+      - name: program_id
+        tests: [unique, not_null]
+
+  - name: dim_student
+    columns:
+      - name: student_key
+        tests: [unique, not_null]
+      - name: student_id
+        tests: [unique, not_null]
+
+  - name: dim_subject
+    columns:
+      - name: subject_key
+        tests: [unique, not_null]
+      - name: subject_code
+        tests: [unique, not_null]
+
+  - name: dim_semester
+    columns:
+      - name: semester_key
+        tests: [unique, not_null]
+      - name: semester_id
+        tests: [unique, not_null]
+
+  - name: dim_subject_offering
+    columns:
+      - name: offering_key
+        tests: [unique, not_null]
+      - name: subject_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_subject')
+              field: subject_key
+      - name: semester_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_semester')
+              field: semester_key
+
+  - name: dim_assessment
+    columns:
+      - name: assessment_key
+        tests: [unique, not_null]
+      - name: offering_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_subject_offering')
+              field: offering_key
+
+  - name: fact_program_enrollment
+    columns:
+      - name: program_enrollment_key
+        tests: [unique, not_null]
+      - name: student_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_student')
+              field: student_key
+      - name: program_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_program')
+              field: program_key
+      - name: final_degree_result
+        tests:
+          - accepted_values:
+              values:
+                - 'High Distinction'
+                - 'Distinction'
+                - 'Merit'
+                - 'Pass'
+
+  - name: fact_subject_enrollment
+    columns:
+      - name: subject_enrollment_key
+        tests: [unique, not_null]
+      - name: subject_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_subject')
+              field: subject_key
+      - name: offering_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_subject_offering')
+              field: offering_key
+      - name: program_enrollment_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_program_enrollment')
+              field: program_enrollment_key
+      - name: final_mark
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: final_grade
+        tests:
+          - accepted_values:
+              values:
+                - 'A'
+                - 'A-'
+                - 'B+'
+                - 'B'
+                - 'B-'
+                - 'C+'
+                - 'C'
+                - 'C-'
+                - 'D+'
+                - 'D'
+                - 'D-'
+                - 'F'
+
+  - name: fact_assessment_result
+    columns:
+      - name: result_key
+        tests: [unique, not_null]
+      - name: subject_enrollment_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_subject_enrollment')
+              field: subject_enrollment_key
+      - name: assessment_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_assessment')
+              field: assessment_key
+      - name: raw_score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+              inclusive: true

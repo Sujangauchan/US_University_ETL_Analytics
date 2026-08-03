@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: raw_landed
+    schema: raw_landed
+    tables:
+      - name: raw_programs
+      - name: raw_subjects
+      - name: raw_program_subjects
+      - name: raw_semesters
+      - name: raw_subject_offerings
+      - name: raw_students
+      - name: raw_program_enrollments
+      - name: raw_subject_enrollments
+      - name: raw_assessments
+      - name: raw_assessment_results

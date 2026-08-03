@@ -1,0 +1,188 @@
+version: 2
+
+models:
+  - name: stg_programs
+    columns:
+      - name: program_id
+        tests: [unique, not_null]
+
+  - name: stg_subjects
+    columns:
+      - name: subject_code
+        tests: [unique, not_null]
+
+  - name: stg_semesters
+    columns:
+      - name: semester_id
+        tests: [unique, not_null]
+
+  - name: stg_program_subjects
+    columns:
+      - name: program_subject_id
+        tests: [unique, not_null]
+      - name: program_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_programs')
+              field: program_id
+      - name: subject_code
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_subjects')
+              field: subject_code
+
+  - name: stg_subject_offerings
+    columns:
+      - name: offering_id
+        tests: [unique, not_null]
+      - name: subject_code
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_subjects')
+              field: subject_code
+      - name: semester_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_semesters')
+              field: semester_id
+
+  - name: stg_students
+    columns:
+      - name: student_id
+        tests: [unique, not_null]
+
+  - name: stg_assessments
+    columns:
+      - name: assessment_id
+        tests: [unique, not_null]
+      - name: offering_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_subject_offerings')
+              field: offering_id
+      - name: weight_percentage
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+
+ 
+  - name: stg_program_enrollments
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - program_enrollment_id
+            - updated_at
+    columns:
+      - name: program_enrollment_id
+        tests: [not_null]   # no unique  check as duplicates allowed by design to capture historical changes
+      - name: student_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_students')
+              field: student_id
+      - name: program_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_programs')
+              field: program_id
+      - name: status
+        tests:
+          - accepted_values:
+              values:
+                - 'Active'
+                - 'Graduated'
+                - 'Withdrawn'
+                - 'Suspended'
+                - 'Dismissed'
+                - 'Leave of Absence'
+      - name: final_degree_result
+        tests:
+          - accepted_values:
+              values:
+                - 'High Distinction'
+                - 'Distinction'
+                - 'Merit'
+                - 'Pass'
+
+ 
+  - name: stg_subject_enrollments
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - subject_enrollment_id
+            - updated_at
+    columns:
+      - name: subject_enrollment_id
+        tests: [not_null]   # no unique  check as duplicates allowed by design to capture historical changes
+      - name: program_enrollment_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_program_enrollments')
+              field: program_enrollment_id
+      - name: offering_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_subject_offerings')
+              field: offering_id
+      - name: final_mark
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: final_grade
+        tests:
+          - accepted_values:
+              values:
+                - 'A'
+                - 'A-'
+                - 'B+'
+                - 'B'
+                - 'B-'
+                - 'C+'
+                - 'C'
+                - 'C-'
+                - 'D+'
+                - 'D'
+                - 'D-'
+                - 'F'
+
+
+  - name: stg_assessment_results
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - result_id
+            - updated_at
+    columns:
+      - name: result_id
+        tests: [not_null]   # no unique  check as duplicates allowed by design to capture historical changes
+      - name: subject_enrollment_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_subject_enrollments')
+              field: subject_enrollment_id
+      - name: assessment_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_assessments')
+              field: assessment_id
+      - name: raw_score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+              inclusive: true

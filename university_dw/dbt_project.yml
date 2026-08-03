@@ -1,0 +1,38 @@
+name: 'university_dw'
+version: '1.0.0'
+require-dbt-version: ">=1.6.0,<2.0.0"
+
+profile: 'university_dw'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  university_dw:
+    staging:
+      +materialized: view
+      +schema: staging
+    warehouse:
+      +materialized: table
+      +schema: warehouse
+    obt:
+      +materialized: table
+      +schema: obt
+
+
+vars:
+  pass_threshold_pct: 0.5
+  score_band_excellent_pct: 0.85
+  score_band_satisfactory_pct: 0.65
+  retake_heavy_threshold: 3
+  good_standing_gpa: 70
+  at_risk_gpa: 50
+  at_risk_inactivity_days: 60
