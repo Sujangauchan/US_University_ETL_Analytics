@@ -15,6 +15,7 @@ import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import List, Dict, Tuple
+from tqdm import tqdm
 
 import psycopg2
 import psycopg2.extras
@@ -399,10 +400,7 @@ def main():
     assessment_results = []
     se_id = 1
 
-    for index, (pe_id, subject_code, degree, difficulty) in enumerate(planned_subject_enrollments, start=1):
-        if index % 1000 == 0 or index == len(planned_subject_enrollments):
-            log.info("Generating enrollments: %d/%d", index, len(planned_subject_enrollments))
-
+    for (pe_id, subject_code, degree, difficulty) in tqdm(planned_subject_enrollments, desc="Generating enrollments"):
         sem_list = subject_semesters.get(subject_code, [])
         if not sem_list:
             continue
