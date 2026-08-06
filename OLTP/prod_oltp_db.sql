@@ -142,6 +142,7 @@ CREATE TABLE assessment_results (
 		DELETE CASCADE,
 	raw_score NUMERIC(5, 2) CHECK (raw_score >= 0),
 	submitted_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		UNIQUE (subject_enrollment_id,
 		assessment_id)
 );
