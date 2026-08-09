@@ -90,8 +90,8 @@ Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snaps
 
 Complete field-level mapping for every transition (OLTP → datalake → staging → warehouse → OBT), including source/target columns, data types, and calculated-metric definitions.
 
-- Full mapping (read-only): **[link to Google Sheet]**
-- Offline copy: `docs/Final_Data_Mapping_Sheet.xlsx`
+- Full mapping (read-only): **[https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing]**
+- Offline copy: `Docs/Final_Data_Mapping_Sheet.xlsx`
 
 ## Why ELT
 
