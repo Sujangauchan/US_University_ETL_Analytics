@@ -19,7 +19,72 @@ Two separate execution environments:
 - OLTP Postgres runs on the host, reached from containers via `host.docker.internal`
 - Mirrors a realistic deployment boundary: owned infrastructure vs. an external source system
 
-Full diagram: **[link to diagram]**
+![Architecture diagram](Docs/architecture.png)
+
+```
+                        ┌──────────────────┐
+                        │   OLTP Source    │
+                        │   (PostgreSQL)   │
+                        └──────────────────┘
+                                  │
+                                  ▼
+   ┌────────────────────────────────────────────────────────────┐
+   │            DATALAKE LAYER  (raw_landed, DuckDB)            │
+   │                                                            │
+   │    ┌──────────────────────┐    ┌──────────────────────┐    │
+   │    │      Dimensions      │    │        Facts         │    │
+   │    │    (full reload)     │    │    (incremental,     │    │
+   │    │                      │    │     watermarked)     │    │
+   │    └──────────────────────┘    └──────────────────────┘    │
+   │                                                            │
+   └────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+   ┌────────────────────────────────────────────────────────────┐
+   │                       STAGING LAYER                        │
+   │                                                            │
+   │  ┌──────────────────────────────────────────────────────┐  │
+   │  │ Lightly cleaned views, one per source table          │  │
+   │  └──────────────────────────────────────────────────────┘  │
+   └────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+   ┌────────────────────────────────────────────────────────────┐
+   │                      WAREHOUSE LAYER                       │
+   │                                                            │
+   │  ┌──────────────────────────────────────────────────────┐  │
+   │  │ SCD Type 2 snapshot on programs (dbt snapshot)       │  │
+   │  │ Star schema: dimension + fact tables                 │  │
+   │  │ 3 incremental facts (new/changed rows only)          │  │
+   │  └──────────────────────────────────────────────────────┘  │
+   └────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+            ┌──────────────────────────────────────────┐
+            │                 dbt test                 │
+            │    100 automated data quality checks     │
+            └──────────────────────────────────────────┘
+                                  │
+                                  ▼
+   ┌────────────────────────────────────────────────────────────┐
+   │                         OBT LAYER                          │
+   │                                                            │
+   │  ┌──────────────────────────────────────────────────────┐  │
+   │  │ Wide, denormalized tables                            │  │
+   │  │ One row per business entity                          │  │
+   │  │ No joins needed at query time                        │  │
+   │  │ Built for direct Superset consumption                │  │
+   │  └──────────────────────────────────────────────────────┘  │
+   └────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+                     ┌────────────────────────┐
+                     │        Superset        │
+                     │ (read-only dashboards) │
+                     └────────────────────────┘
+```
+
+Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snapshot >> dbt_run >> dbt_test`.
 
 ## Data mapping
 
