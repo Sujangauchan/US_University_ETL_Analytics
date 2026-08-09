@@ -86,11 +86,21 @@ Two separate execution environments:
 
 Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snapshot >> dbt_run >> dbt_test`.
 
+## Dashboards
+
+Built on the `obt` schema, refreshed by the pipeline above.
+
+**Active enrollment summary**
+![Active enrollment summary](Docs/Active%20enrollment%20summary.png)
+
+**Program graduation trends**
+![Program graduations trend](Docs/Program%20graduations%20trend.png)
+
 ## Data mapping
 
 Complete field-level mapping for every transition (OLTP → datalake → staging → warehouse → OBT), including source/target columns, data types, and calculated-metric definitions.
 
-- Full mapping (read-only): **[https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing]**
+- Full mapping (read-only): [Google Sheet](https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing)
 - Offline copy: `Docs/Final_Data_Mapping_Sheet.xlsx`
 
 ## Why ELT
