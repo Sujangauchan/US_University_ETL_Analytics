@@ -1,0 +1,7 @@
+university_dw:
+  outputs:
+    dev:
+      type: duckdb
+      path: /opt/airflow/project/Storage/warehouse.duckdb
+      threads: 1
+  target: dev

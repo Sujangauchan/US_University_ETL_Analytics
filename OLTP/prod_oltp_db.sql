@@ -190,3 +190,9 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_subject_enrollments_updated_at
 BEFORE UPDATE ON subject_enrollments
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Add updated_at field trigger in assessment_results table on each update
+
+CREATE TRIGGER trg_assessment_results_updated_at
+BEFORE UPDATE ON assessment_results
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
