@@ -7,9 +7,9 @@ An end-to-end data platform that moves university enrollment, assessment, and pr
 ## Architecture
 
 - **OLTP (Postgres)** — transactional source system
-- **Datalake (DuckDB, `raw_landed` schema)** — raw data landed as-is, before transformation
+- **Datalake (DuckDB, `raw_landed` schema)** — raw data landed as-is, before transformation (Bronze)
 - **dbt snapshot** — SCD Type 2 history on `programs`
-- **dbt run** — `staging` (views) → `warehouse` (star schema) → `obt` (denormalized, dashboard-ready)
+- **dbt run** — `staging` (views) → `warehouse` (star schema) — Silver — → `obt` (denormalized, dashboard-ready) — Gold
 - **dbt test** — 100 automated data quality tests
 - **Superset** — read-only dashboards on the `obt` schema
 - **Orchestration** — Apache Airflow (LocalExecutor), all of the above as one DAG
@@ -30,6 +30,7 @@ Two separate execution environments:
                                   ▼
    ┌────────────────────────────────────────────────────────────┐
    │            DATALAKE LAYER  (raw_landed, DuckDB)            │
+   │           [ BRONZE — raw, as-landed, unrefined ]           │
    │                                                            │
    │    ┌──────────────────────┐    ┌──────────────────────┐    │
    │    │      Dimensions      │    │        Facts         │    │
@@ -40,24 +41,26 @@ Two separate execution environments:
    └────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
-   ┌────────────────────────────────────────────────────────────┐
-   │                       STAGING LAYER                        │
-   │                                                            │
-   │  ┌──────────────────────────────────────────────────────┐  │
-   │  │ Lightly cleaned views, one per source table          │  │
-   │  └──────────────────────────────────────────────────────┘  │
-   └────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────┐
+  │                        STAGING LAYER                         │
+  │               [ SILVER — cleaned, conformed ]                │
+  │                                                              │
+  │  ┌────────────────────────────────────────────────────────┐  │
+  │  │ Lightly cleaned views, one per source table            │  │
+  │  └────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
-   ┌────────────────────────────────────────────────────────────┐
-   │                      WAREHOUSE LAYER                       │
-   │                                                            │
-   │  ┌──────────────────────────────────────────────────────┐  │
-   │  │ SCD Type 2 snapshot on programs (dbt snapshot)       │  │
-   │  │ Star schema: dimension + fact tables                 │  │
-   │  │ 3 incremental facts (new/changed rows only)          │  │
-   │  └──────────────────────────────────────────────────────┘  │
-   └────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────┐
+  │                       WAREHOUSE LAYER                        │
+  │               [ SILVER — cleaned, conformed ]                │
+  │                                                              │
+  │  ┌────────────────────────────────────────────────────────┐  │
+  │  │ SCD Type 2 snapshot on programs (dbt snapshot)         │  │
+  │  │ Star schema: dimension + fact tables                   │  │
+  │  │ 3 incremental facts (new/changed rows only)            │  │
+  │  └────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
             ┌──────────────────────────────────────────┐
@@ -66,16 +69,17 @@ Two separate execution environments:
             └──────────────────────────────────────────┘
                                   │
                                   ▼
-   ┌────────────────────────────────────────────────────────────┐
-   │                         OBT LAYER                          │
-   │                                                            │
-   │  ┌──────────────────────────────────────────────────────┐  │
-   │  │ Wide, denormalized tables                            │  │
-   │  │ One row per business entity                          │  │
-   │  │ No joins needed at query time                        │  │
-   │  │ Built for direct Superset consumption                │  │
-   │  └──────────────────────────────────────────────────────┘  │
-   └────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────┐
+  │                          OBT LAYER                           │
+  │         [ GOLD — business-ready, consumption-ready ]         │
+  │                                                              │
+  │  ┌────────────────────────────────────────────────────────┐  │
+  │  │ Wide, denormalized tables                              │  │
+  │  │ One row per business entity                            │  │
+  │  │ No joins needed at query time                          │  │
+  │  │ Built for direct Superset consumption                  │  │
+  │  └────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
                      ┌────────────────────────┐
@@ -90,22 +94,51 @@ Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snaps
 
 Built on the `obt` schema, refreshed by the pipeline above.
 
+### Overall dashboards
+
 **Active enrollment summary**
 ![Active enrollment summary](Docs/Active%20enrollment%20summary.png)
+*[Insight: e.g., total active enrollment count, breakdown by status]*
 
 **Program graduation trends**
 ![Program graduations trend](Docs/Program%20graduations%20trend.png)
+*[Insight: trend direction over time, any visible effect from demo data updates]*
+
+### Individual insights
+
+Drill-downs from the summary dashboard, isolating one dimension at a time.
+
+**Active enrollment by department**
+![Active enrollment by department](Docs/Active%20enrollment%20by%20department.png)
+
+Law carries the largest active cohort by a wide margin (4,171 on track, 1,378 at risk), more than any other department's total enrollment. On raw at-risk rate rather than headcount, Education is actually the most exposed department at roughly 30% at risk, followed by Law at 25%; Medicine is the most stable at just under 18%.
+
+**Active enrollment by program level**
+![Active enrollment by program level](Docs/Active%20enrollment%20by%20program%20level.png)
+
+At-risk rate rises sharply as program level becomes more foundational: Doctoral students sit at about 4% at risk, Master's at 14%, and Bachelor's at nearly 36%. Bachelor's also carries the largest total active population by far, so this is where academic-standing interventions would have the most impact in absolute terms.
+
+**Active enrollment by graduation month**
+![Active enrollment by graduation month](Docs/Active%20enrollment%20by%20graduation%20month.png)
+
+The distribution of expected graduation dates is bimodal rather than a single smooth curve — an earlier peak around 2026 and a larger, later peak around 2028, before tapering toward zero by 2030. This shape reflects overlapping program durations across degree levels (shorter Master's/Bachelor's completions clustering earlier, longer-running cohorts pushing the second, larger peak outward) rather than a single uniform cohort progressing together.
+
+## Data lineage
+
+Generated lineage diagrams showing how each OBT table traces back through the warehouse and staging layers to its raw sources.
+
+**Program summary lineage**
+![Program summary lineage](Docs/Program%20summary%20lineage.png)
+
+**Assessment result lineage**
+![Assessment result lineage](Docs/Assessment%20Result%20Lineage.png)
 
 ## Data mapping
 
 Complete field-level mapping for every transition (OLTP → datalake → staging → warehouse → OBT), including source/target columns, data types, and calculated-metric definitions.
 
 - Full mapping (read-only): [Google Sheet](https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing)
-- Offline copy: `Docs/Final_Data_Mapping_Sheet.xlsx`
-
-## Demo video
-
-https://github.com/user-attachments/assets/4d7175f7-cd51-4a0b-ad77-8e9315f612e8
+- Offline copy: `Docs/Data_Mapping_Sheet_US_ELT_ANALYTICS.xlsx`
 
 ## Why ELT
 
@@ -150,6 +183,7 @@ ingest_oltp_to_datalake >> dbt_snapshot >> dbt_run >> dbt_test
 - `max_active_runs=1` — prevents overlapping runs from contending for the DuckDB write lock (a real collision found and fixed during development)
 - Retries once after a 2-minute delay on failure
 - Exhausted retries write a structured failure entry to the task log (`on_failure_callback`) — hook point for future email/Slack alerting
+- Airflow containers run with `TZ` explicitly set to match the OLTP host's timezone — a real bug surfaced during development where a container/host clock mismatch caused `updated_at` watermarks to appear ahead of the container's own clock, silently halting incremental loads
 
 ## Concurrency
 
@@ -167,7 +201,8 @@ US_University_ETL_Analytics/
 │   ├── data_loader.py       Synthetic dataset generator (~577k subject
 │   │                        enrollments, ~2.6M assessment results, with
 │   │                        realistic retake and multi-program patterns)
-│   └── seed_incremental.py  Small supplemental changes, for demonstrating
+│   └── Incremental_program_enrollment.py
+│                            Small supplemental changes, for demonstrating
 │                            incremental loads and SCD2 history
 ├── Datalake/
 │   └── ingestion.py         OLTP -> DuckDB raw_landed extraction
@@ -206,12 +241,28 @@ docker exec -it airflow-scheduler airflow dags trigger university_etl_pipeline
 Generate a small set of incremental changes for demonstration (run on host, OLTP at `localhost`):
 ```
 cd OLTP
-python seed_incremental.py
+python Incremental_program_enrollment.py
 ```
 Renames one program, graduates one enrollment, adjusts one mark and one assessment score, and inserts a new semester with new students, offerings, and enrollments — one transaction.
 
-## Known limitations
+## Known limitations and future enhancements
 
+**Scheduling and alerting**
 - `@daily` schedule not yet validated against a production cadence
-- Failure alerting limited to structured log entries; email/Slack notification is a natural extension of the existing `on_failure_callback` hook
+- Failure alerting limited to structured log entries — the `on_failure_callback` hook is in place; wiring it to email or Slack is the natural next step
+- No SLA monitoring (e.g., alerting if a run takes meaningfully longer than usual)
+
+**Naming and structure**
 - Repository and DAG naming still reflect the earlier ETL framing; rename pending, separate from pipeline logic
+
+**Data and testing**
+- Demonstration data (`seed_incremental.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments; a true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
+- Test coverage validates structure and constraints well; no tests currently check for data drift or unexpected volume changes between runs
+
+**Operations**
+- Credentials are managed via a plaintext `.env` file; a secrets manager (e.g., Docker secrets, AWS Secrets Manager) would be a more production-appropriate approach
+- Single DuckDB file caps write concurrency at one writer; a team scaling beyond a single pipeline and a handful of read-only consumers would eventually outgrow this and need a client-server warehouse
+- No CI: dbt tests and model compilation are not currently run automatically on pull requests
+
+**Documentation and lineage**
+- No generated dbt docs / lineage graph yet; `dbt docs generate` would produce an interactive, browsable version of the field-level mapping currently maintained by hand
