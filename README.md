@@ -103,6 +103,10 @@ Complete field-level mapping for every transition (OLTP → datalake → staging
 - Full mapping (read-only): [Google Sheet](https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing)
 - Offline copy: `Docs/Final_Data_Mapping_Sheet.xlsx`
 
+## Demo video
+
+https://github.com/user-attachments/assets/4d7175f7-cd51-4a0b-ad77-8e9315f612e8
+
 ## Why ELT
 
 - Raw data lands in `raw_landed` untouched, before any transformation
