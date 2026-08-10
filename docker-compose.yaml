@@ -20,6 +20,7 @@ x-airflow-common:
     DBT_PROFILES_DIR: /opt/airflow/project/Warehouse/docker_profiles
     PG_HOST: host.docker.internal
     DUCKDB_PATH: /opt/airflow/project/Storage/warehouse.duckdb
+    TZ: Asia/Kathmandu
   volumes:
     - ./Airflow/dags:/opt/airflow/dags
     - ./Airflow/logs:/opt/airflow/logs
