@@ -9,7 +9,7 @@ An end-to-end data platform that moves university enrollment, assessment, and pr
 - **OLTP (Postgres)** — transactional source system
 - **Datalake (DuckDB, `raw_landed` schema)** — raw data landed as-is, before transformation (Bronze)
 - **dbt snapshot** — SCD Type 2 history on `programs`
-- **dbt run** — `staging` (views) → `warehouse` (star schema) — Silver — → `obt` (denormalized, dashboard-ready) — Gold
+- **dbt run** — `staging` (views) → `warehouse` (galaxy/fact constellation schema) — Silver — → `obt` (denormalized, dashboard-ready) — Gold
 - **dbt test** — 100 automated data quality tests
 - **Superset** — read-only dashboards on the `obt` schema
 - **Orchestration** — Apache Airflow (LocalExecutor), all of the above as one DAG
@@ -57,7 +57,7 @@ Two separate execution environments:
   │                                                              │
   │  ┌────────────────────────────────────────────────────────┐  │
   │  │ SCD Type 2 snapshot on programs (dbt snapshot)         │  │
-  │  │ Star schema: dimension + fact tables                   │  │
+  │  │ galaxy/fact constellation: 7 dimension + 3 fact tables │  │
   │  │ 3 incremental facts (new/changed rows only)            │  │
   │  └────────────────────────────────────────────────────────┘  │
   └──────────────────────────────────────────────────────────────┘
@@ -161,7 +161,7 @@ Complete field-level mapping for every transition (OLTP → datalake → staging
 
 **Transformation** — three schemas, increasing refinement
 - `staging` — lightly cleaned views, one per source table
-- `warehouse` — dimension and fact tables, conventional star schema; three incremental fact tables reprocess only new/changed rows
+- `warehouse` — dimension and fact tables, galaxy/fact constellation schema: three fact tables share conformed dimensions (`dim_student`, `dim_program`, etc.); three incremental fact tables reprocess only new/changed rows
 - `obt` — wide, denormalized tables built for direct Superset consumption, no joins at query time
 
 **Validation**
@@ -170,6 +170,13 @@ Complete field-level mapping for every transition (OLTP → datalake → staging
 **Presentation**
 - Superset connects read-only — never contends with the pipeline for a write lock
 - Dashboards built directly on `obt`
+
+## Engineering decisions
+
+- **Surrogate keys via `hash(natural_id)`, not the natural key itself.** Source natural keys are inconsistent types (`program_id`/`student_id` are strings, `program_enrollment_id` is an integer). Hashing every key down to a uniform `UBIGINT` makes every warehouse join an integer comparison instead of a mix of string and integer comparisons — faster at query time, and it decouples the warehouse's join keys from whatever format the source system happens to use. Tradeoff worth naming: `hash()` isn't collision-proof the way a database sequence is, though at this data volume the risk is negligible.
+- **`staging` materializes as views; `warehouse`/`obt` materialize as tables.** Staging is a thin, cheap passthrough with no reason to persist to disk. Warehouse and OBT are queried repeatedly by Superset, so they're physically materialized rather than recomputed on every dashboard refresh.
+- **Incremental strategy is `delete+insert`, not `merge`.** DuckDB is a columnar engine, not optimized for row-level `UPDATE`/`MERGE` the way an OLTP row-store is; deleting and reinserting the changed partition fits how DuckDB actually executes efficiently.
+- **OBT is deliberately denormalized**, trading storage and duplication for zero joins at BI query time — the opposite tradeoff from the warehouse layer, made specifically because the consumption layer's job is fast dashboard reads, not storage efficiency.
 
 ## Orchestration
 
@@ -256,7 +263,7 @@ Renames one program, graduates one enrollment, adjusts one mark and one assessme
 - Repository and DAG naming still reflect the earlier ETL framing; rename pending, separate from pipeline logic
 
 **Data and testing**
-- Demonstration data (`seed_incremental.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments; a true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
+- Demonstration data (`Incremental_program_enrollment.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments; a true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
 - Test coverage validates structure and constraints well; no tests currently check for data drift or unexpected volume changes between runs
 
 **Operations**
