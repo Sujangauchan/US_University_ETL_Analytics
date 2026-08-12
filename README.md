@@ -94,7 +94,7 @@ Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snaps
 
 A short screen recording of a full pipeline run, start to finish: Airflow triggering the DAG, the raw load landing in DuckDB, the dbt snapshot capturing an SCD Type 2 change on `programs`, and the resulting history showing up as new `dbt_valid_from` / `dbt_valid_to` rows.
 
-*[https://github.com/user-attachments/assets/d06e6fa1-285b-409c-9dac-24b596ea4acf]*
+https://github.com/user-attachments/assets/d06e6fa1-285b-409c-9dac-24b596ea4acf
 
 ## Dashboards
 
