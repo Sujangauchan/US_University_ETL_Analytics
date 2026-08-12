@@ -6,13 +6,13 @@ An end-to-end data platform that moves university enrollment, assessment, and pr
 
 ## Architecture
 
-- **OLTP (Postgres)** — transactional source system
-- **Datalake (DuckDB, `raw_landed` schema)** — raw data landed as-is, before transformation (Bronze)
-- **dbt snapshot** — SCD Type 2 history on `programs`
-- **dbt run** — `staging` (views) → `warehouse` (galaxy/fact constellation schema) — Silver — → `obt` (denormalized, dashboard-ready) — Gold
-- **dbt test** — 100 automated data quality tests
-- **Superset** — read-only dashboards on the `obt` schema
-- **Orchestration** — Apache Airflow (LocalExecutor), all of the above as one DAG
+- **OLTP (Postgres)**: transactional source system
+- **Datalake (DuckDB, `raw_landed` schema)**: raw data landed as-is, before transformation (Bronze)
+- **dbt snapshot**: SCD Type 2 history on `programs`
+- **dbt run**: `staging` (views) to `warehouse` (galaxy/fact constellation schema, Silver) to `obt` (denormalized, dashboard-ready, Gold)
+- **dbt test**: 100 automated data quality tests
+- **Superset**: read-only dashboards on the `obt` schema
+- **Orchestration**: Apache Airflow (LocalExecutor), all of the above as one DAG
 
 Two separate execution environments:
 - Airflow, its metadata database, and dbt run inside Docker containers (Docker Compose)
@@ -30,7 +30,7 @@ Two separate execution environments:
                                   ▼
    ┌────────────────────────────────────────────────────────────┐
    │            DATALAKE LAYER  (raw_landed, DuckDB)            │
-   │           [ BRONZE — raw, as-landed, unrefined ]           │
+   │           [ BRONZE, raw, as-landed, unrefined ]             │
    │                                                            │
    │    ┌──────────────────────┐    ┌──────────────────────┐    │
    │    │      Dimensions      │    │        Facts         │    │
@@ -43,7 +43,7 @@ Two separate execution environments:
                                   ▼
   ┌──────────────────────────────────────────────────────────────┐
   │                        STAGING LAYER                         │
-  │               [ SILVER — cleaned, conformed ]                │
+  │               [ SILVER, cleaned, conformed ]                 │
   │                                                              │
   │  ┌────────────────────────────────────────────────────────┐  │
   │  │ Lightly cleaned views, one per source table            │  │
@@ -53,7 +53,7 @@ Two separate execution environments:
                                   ▼
   ┌──────────────────────────────────────────────────────────────┐
   │                       WAREHOUSE LAYER                        │
-  │               [ SILVER — cleaned, conformed ]                │
+  │               [ SILVER, cleaned, conformed ]                 │
   │                                                              │
   │  ┌────────────────────────────────────────────────────────┐  │
   │  │ SCD Type 2 snapshot on programs (dbt snapshot)         │  │
@@ -71,7 +71,7 @@ Two separate execution environments:
                                   ▼
   ┌──────────────────────────────────────────────────────────────┐
   │                          OBT LAYER                           │
-  │         [ GOLD — business-ready, consumption-ready ]         │
+  │         [ GOLD, business-ready, consumption-ready ]          │
   │                                                              │
   │  ┌────────────────────────────────────────────────────────┐  │
   │  │ Wide, denormalized tables                              │  │
@@ -89,6 +89,12 @@ Two separate execution environments:
 ```
 
 Orchestrated end to end by Apache Airflow: `ingest_oltp_to_datalake >> dbt_snapshot >> dbt_run >> dbt_test`.
+
+## Demo video
+
+A short screen recording of a full pipeline run, start to finish: Airflow triggering the DAG, the raw load landing in DuckDB, the dbt snapshot capturing an SCD Type 2 change on `programs`, and the resulting history showing up as new `dbt_valid_from` / `dbt_valid_to` rows.
+
+*[https://github.com/user-attachments/assets/d06e6fa1-285b-409c-9dac-24b596ea4acf]*
 
 ## Dashboards
 
@@ -111,7 +117,7 @@ Drill-downs from the summary dashboard, isolating one dimension at a time.
 **Active enrollment by department**
 ![Active enrollment by department](Docs/Active%20enrollment%20by%20department.png)
 
-Law carries the largest active cohort by a wide margin (4,171 on track, 1,378 at risk), more than any other department's total enrollment. On raw at-risk rate rather than headcount, Education is actually the most exposed department at roughly 30% at risk, followed by Law at 25%; Medicine is the most stable at just under 18%.
+Law carries the largest active cohort by a wide margin (4,171 on track, 1,378 at risk), more than any other department's total enrollment. On raw at-risk rate rather than headcount, Education is actually the most exposed department at roughly 30% at risk, followed by Law at 25%. Medicine is the most stable at just under 18%.
 
 **Active enrollment by program level**
 ![Active enrollment by program level](Docs/Active%20enrollment%20by%20program%20level.png)
@@ -121,7 +127,7 @@ At-risk rate rises sharply as program level becomes more foundational: Doctoral 
 **Active enrollment by graduation month**
 ![Active enrollment by graduation month](Docs/Active%20enrollment%20by%20graduation%20month.png)
 
-The distribution of expected graduation dates is bimodal rather than a single smooth curve — an earlier peak around 2026 and a larger, later peak around 2028, before tapering toward zero by 2030. This shape reflects overlapping program durations across degree levels (shorter Master's/Bachelor's completions clustering earlier, longer-running cohorts pushing the second, larger peak outward) rather than a single uniform cohort progressing together.
+The distribution of expected graduation dates is bimodal rather than a single smooth curve: an earlier peak around 2026 and a larger, later peak around 2028, before tapering toward zero by 2030. This shape reflects overlapping program durations across degree levels (shorter Master's/Bachelor's completions clustering earlier, longer-running cohorts pushing the second, larger peak outward), rather than a single uniform cohort progressing together. This also presents opportunity for staff engagements in additional promotional events and engagements such as workshops, hackathon during low graduation period.
 
 ## Data lineage
 
@@ -135,7 +141,7 @@ Generated lineage diagrams showing how each OBT table traces back through the wa
 
 ## Data mapping
 
-Complete field-level mapping for every transition (OLTP → datalake → staging → warehouse → OBT), including source/target columns, data types, and calculated-metric definitions.
+Complete field-level mapping for every transition (OLTP to datalake to staging to warehouse to OBT), including source/target columns, data types, and calculated-metric definitions.
 
 - Full mapping (read-only): [Google Sheet](https://docs.google.com/spreadsheets/d/1KNtPWFwnuou4snxDgdEr0M5RlZUQlSyc4-milvOgtno/edit?usp=sharing)
 - Offline copy: `Docs/Data_Mapping_Sheet_US_ELT_ANALYTICS.xlsx`
@@ -143,40 +149,40 @@ Complete field-level mapping for every transition (OLTP → datalake → staging
 ## Why ELT
 
 - Raw data lands in `raw_landed` untouched, before any transformation
-- Transformation happens afterward, in-warehouse, via dbt SQL — not embedded in extraction code
+- Transformation happens afterward, in-warehouse, via dbt SQL, not embedded in extraction code
 - Benefits:
-  - Raw layer preserves an unmodified source copy; any downstream model can be rebuilt from it without re-querying the source
+  - Raw layer preserves an unmodified source copy. Any downstream model can be rebuilt from it without re-querying the source
   - Transformation logic is version-controlled and testable through dbt
 
 ## Data flow
 
 **Extraction and loading** (`Datalake/ingestion.py`)
-- Dimension tables (`programs`, `subjects`, `semesters`, `students`, etc.) — full reload every run
-- Fact tables (`program_enrollments`, `subject_enrollments`, `assessment_results`) — incremental, watermarked on `updated_at`, 10-minute lookback for late-committing transactions
-- Raw fact layer is an append-only journal (every landed version kept) — not formal SCD2, since there are no explicit validity boundaries; that curation happens deliberately at the snapshot step
+- Dimension tables (`programs`, `subjects`, `semesters`, `students`, etc.): full reload every run
+- Fact tables (`program_enrollments`, `subject_enrollments`, `assessment_results`): incremental, watermarked on `updated_at`, 10-minute lookback for late-committing transactions
+- Raw fact layer is an append-only journal (every landed version kept), not formal SCD2, since there are no explicit validity boundaries. That curation happens deliberately at the snapshot step
 
 **History capture**
 - `programs` snapshotted via dbt's native SCD Type 2 snapshot functionality
 - Every attribute change preserved as a new row (`dbt_valid_from` / `dbt_valid_to`)
 
-**Transformation** — three schemas, increasing refinement
-- `staging` — lightly cleaned views, one per source table
-- `warehouse` — dimension and fact tables, galaxy/fact constellation schema: three fact tables share conformed dimensions (`dim_student`, `dim_program`, etc.); three incremental fact tables reprocess only new/changed rows
-- `obt` — wide, denormalized tables built for direct Superset consumption, no joins at query time
+**Transformation**: three schemas, increasing refinement
+- `staging`: lightly cleaned views, one per source table
+- `warehouse`: dimension and fact tables, galaxy/fact constellation schema. Three fact tables share conformed dimensions (`dim_student`, `dim_program`, etc.). Three incremental fact tables reprocess only new/changed rows
+- `obt`: wide, denormalized tables built for direct Superset consumption, no joins at query time
 
 **Validation**
 - 100 automated tests: not-null, accepted values, uniqueness, referential integrity, numeric range checks
 
 **Presentation**
-- Superset connects read-only — never contends with the pipeline for a write lock
+- Superset connects read-only, never contends with the pipeline for a write lock
 - Dashboards built directly on `obt`
 
 ## Engineering decisions
 
-- **Surrogate keys via `hash(natural_id)`, not the natural key itself.** Source natural keys are inconsistent types (`program_id`/`student_id` are strings, `program_enrollment_id` is an integer). Hashing every key down to a uniform `UBIGINT` makes every warehouse join an integer comparison instead of a mix of string and integer comparisons — faster at query time, and it decouples the warehouse's join keys from whatever format the source system happens to use. Tradeoff worth naming: `hash()` isn't collision-proof the way a database sequence is, though at this data volume the risk is negligible.
+- **Surrogate keys via `hash(natural_id)`, not the natural key itself.** Source natural keys are inconsistent types (`program_id`/`student_id` are strings, `program_enrollment_id` is an integer). Hashing every key down to a uniform `UBIGINT` makes every warehouse join an integer comparison instead of a mix of string and integer comparisons, faster at query time, and it decouples the warehouse's join keys from whatever format the source system happens to use. Tradeoff worth naming: `hash()` isn't collision-proof the way a database sequence is, though at this data volume the risk is negligible.
 - **`staging` materializes as views; `warehouse`/`obt` materialize as tables.** Staging is a thin, cheap passthrough with no reason to persist to disk. Warehouse and OBT are queried repeatedly by Superset, so they're physically materialized rather than recomputed on every dashboard refresh.
-- **Incremental strategy is `delete+insert`, not `merge`.** DuckDB is a columnar engine, not optimized for row-level `UPDATE`/`MERGE` the way an OLTP row-store is; deleting and reinserting the changed partition fits how DuckDB actually executes efficiently.
-- **OBT is deliberately denormalized**, trading storage and duplication for zero joins at BI query time — the opposite tradeoff from the warehouse layer, made specifically because the consumption layer's job is fast dashboard reads, not storage efficiency.
+- **Incremental strategy is `delete+insert`, not `merge`.** DuckDB is a columnar engine, not optimized for row-level `UPDATE`/`MERGE` the way an OLTP row-store is. Deleting and reinserting the changed partition fits how DuckDB actually executes efficiently.
+- **OBT is deliberately denormalized**, trading storage and duplication for zero joins at BI query time, the opposite tradeoff from the warehouse layer, made specifically because the consumption layer's job is fast dashboard reads, not storage efficiency.
 
 ## Orchestration
 
@@ -186,17 +192,17 @@ Single Airflow DAG (`Airflow/dags/university_etl_pipeline.py`), four tasks, stri
 ingest_oltp_to_datalake >> dbt_snapshot >> dbt_run >> dbt_test
 ```
 
-- Each task runs the same commands used for local development — Airflow behavior matches manual runs
-- `max_active_runs=1` — prevents overlapping runs from contending for the DuckDB write lock (a real collision found and fixed during development)
+- Each task runs the same commands used for local development. Airflow behavior matches manual runs
+- `max_active_runs=1`: prevents overlapping runs from contending for the DuckDB write lock (a real collision found and fixed during development)
 - Retries once after a 2-minute delay on failure
-- Exhausted retries write a structured failure entry to the task log (`on_failure_callback`) — hook point for future email/Slack alerting
-- Airflow containers run with `TZ` explicitly set to match the OLTP host's timezone — a real bug surfaced during development where a container/host clock mismatch caused `updated_at` watermarks to appear ahead of the container's own clock, silently halting incremental loads
+- Exhausted retries write a structured failure entry to the task log (`on_failure_callback`), a hook point for future email/Slack alerting
+- Airflow containers run with `TZ` explicitly set to match the OLTP host's timezone. A real bug surfaced during development where a container/host clock mismatch caused `updated_at` watermarks to appear ahead of the container's own clock, silently halting incremental loads
 
 ## Concurrency
 
 DuckDB allows exactly one writer at a time, unlimited concurrent readers.
 
-- Superset's connection is explicitly `read_only: true` — never competes with the pipeline for the write lock
+- Superset's connection is explicitly `read_only: true`, never competes with the pipeline for the write lock
 - Any other tool inspecting the warehouse file directly (e.g., a database client) should connect read-only, especially while a pipeline run may be active
 
 ## Repository structure
@@ -240,7 +246,7 @@ docker compose up -d
 - Starts Airflow (metadata DB, scheduler, DAG processor, API server) and Superset
 - First run builds Airflow with `dbt-duckdb`, `duckdb`, `psycopg2-binary`; Superset with `duckdb-engine`, `psycopg2-binary`
 
-Trigger a pipeline run — UI at `localhost:8080`, or:
+Trigger a pipeline run, UI at `localhost:8080`, or:
 ```
 docker exec -it airflow-scheduler airflow dags trigger university_etl_pipeline
 ```
@@ -250,26 +256,29 @@ Generate a small set of incremental changes for demonstration (run on host, OLTP
 cd OLTP
 python Incremental_program_enrollment.py
 ```
-Renames one program, graduates one enrollment, adjusts one mark and one assessment score, and inserts a new semester with new students, offerings, and enrollments — one transaction.
+Renames one program, graduates one enrollment, adjusts one mark and one assessment score, and inserts a new semester with new students, offerings, and enrollments, all in one transaction.
 
 ## Known limitations and future enhancements
 
 **Scheduling and alerting**
 - `@daily` schedule not yet validated against a production cadence
-- Failure alerting limited to structured log entries — the `on_failure_callback` hook is in place; wiring it to email or Slack is the natural next step
+- Failure alerting limited to structured log entries. The `on_failure_callback` hook is in place; wiring it to email or Slack is the natural next step
 - No SLA monitoring (e.g., alerting if a run takes meaningfully longer than usual)
 
 **Naming and structure**
-- Repository and DAG naming still reflect the earlier ETL framing; rename pending, separate from pipeline logic
+- Repository and DAG naming still reflect the earlier ETL framing. Rename pending, separate from pipeline logic
 
 **Data and testing**
-- Demonstration data (`Incremental_program_enrollment.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments; a true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
-- Test coverage validates structure and constraints well; no tests currently check for data drift or unexpected volume changes between runs
+- Demonstration data (`Incremental_program_enrollment.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments. A true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
+- Test coverage validates structure and constraints well. No tests currently check for data drift or unexpected volume changes between runs
 
 **Operations**
-- Credentials are managed via a plaintext `.env` file; a secrets manager (e.g., Docker secrets, AWS Secrets Manager) would be a more production-appropriate approach
-- Single DuckDB file caps write concurrency at one writer; a team scaling beyond a single pipeline and a handful of read-only consumers would eventually outgrow this and need a client-server warehouse
+- Credentials are managed via a plaintext `.env` file. A secrets manager (e.g., Docker secrets, AWS Secrets Manager) would be a more production-appropriate approach
+- Single DuckDB file caps write concurrency at one writer. A team scaling beyond a single pipeline and a handful of read-only consumers would eventually outgrow this and need a client-server warehouse
 - No CI: dbt tests and model compilation are not currently run automatically on pull requests
 
 **Documentation and lineage**
-- No generated dbt docs / lineage graph yet; `dbt docs generate` would produce an interactive, browsable version of the field-level mapping currently maintained by hand
+- No generated dbt docs / lineage graph yet. `dbt docs generate` would produce an interactive, browsable version of the field-level mapping currently maintained by hand
+
+https://github.com/user-attachments/assets/ad492b9f-da52-4946-98d2-e15543f970f4
+
