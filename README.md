@@ -102,13 +102,22 @@ Built on the `obt` schema, refreshed by the pipeline above.
 
 ### Overall dashboards
 
+
+
 **Active enrollment summary**
+
+
 ![Active enrollment summary](Docs/Active%20enrollment%20summary.png)
 *[Insight: e.g., total active enrollment count, breakdown by status]*
 
+
+
 **Program graduation trends**
+
+
 ![Program graduations trend](Docs/Program%20graduations%20trend.png)
 *[Insight: trend direction over time, any visible effect from demo data updates]*
+
 
 ### Individual insights
 
