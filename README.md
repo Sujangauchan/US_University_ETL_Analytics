@@ -246,48 +246,13 @@ US_University_ETL_Analytics/
 └── docker-compose.yaml
 ```
 
-## Running the platform
-
-Bring up the full stack:
-```
-docker compose up -d
-```
-- Starts Airflow (metadata DB, scheduler, DAG processor, API server) and Superset
-- First run builds Airflow with `dbt-duckdb`, `duckdb`, `psycopg2-binary`; Superset with `duckdb-engine`, `psycopg2-binary`
-
-Trigger a pipeline run, UI at `localhost:8080`, or:
-```
-docker exec -it airflow-scheduler airflow dags trigger university_etl_pipeline
-```
-
-Generate a small set of incremental changes for demonstration (run on host, OLTP at `localhost`):
-```
-cd OLTP
-python Incremental_program_enrollment.py
-```
-Renames one program, graduates one enrollment, adjusts one mark and one assessment score, and inserts a new semester with new students, offerings, and enrollments, all in one transaction.
-
 ## Known limitations and future enhancements
 
-**Scheduling and alerting**
-- `@daily` schedule not yet validated against a production cadence
-- Failure alerting limited to structured log entries. The `on_failure_callback` hook is in place; wiring it to email or Slack is the natural next step
+- Failure alerting limited to structured log entries. Wiring the `on_failure_callback` hook to email or Slack would be ideal next step
 - No SLA monitoring (e.g., alerting if a run takes meaningfully longer than usual)
-
-**Naming and structure**
-- Repository and DAG naming still reflect the earlier ETL framing. Rename pending, separate from pipeline logic
-
-**Data and testing**
-- Demonstration data (`Incremental_program_enrollment.py`) simulates mid-cycle changes to existing records rather than a genuine new-semester intake with current-dated enrollments. A true intake scenario (new semester, new students, new offerings, all dated to the present) would exercise the same incremental and SCD2 mechanisms with more realistic data
-- Test coverage validates structure and constraints well. No tests currently check for data drift or unexpected volume changes between runs
-
-**Operations**
 - Credentials are managed via a plaintext `.env` file. A secrets manager (e.g., Docker secrets, AWS Secrets Manager) would be a more production-appropriate approach
 - Single DuckDB file caps write concurrency at one writer. A team scaling beyond a single pipeline and a handful of read-only consumers would eventually outgrow this and need a client-server warehouse
 - No CI: dbt tests and model compilation are not currently run automatically on pull requests
-
-**Documentation and lineage**
-- No generated dbt docs / lineage graph yet. `dbt docs generate` would produce an interactive, browsable version of the field-level mapping currently maintained by hand
-
+  
 https://github.com/user-attachments/assets/ad492b9f-da52-4946-98d2-e15543f970f4
 
